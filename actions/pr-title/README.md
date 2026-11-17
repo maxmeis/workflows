@@ -97,6 +97,8 @@ There is no path or draft filter. A failing check explains which message or impa
 
 ## Tests
 
-From the repository root, run `pnpm test` or `pnpm test:coverage`. Tests use `node:test` and mock the GitHub API; CI runs the suite on Node 24 and 26. No runtime packages or generated bundles are required.
+Tests live in [test/](test/) beside this README, the action manifest, and [src/](src/). From the repository root, run `pnpm test` or `pnpm test:coverage` for all actions, or `node --test actions/pr-title/test/*.test.mjs` for this action. You can also run `node --test` from this action's directory.
+
+Tests use `node:test` and mock the GitHub API; CI runs the suite on Node 24 and 26. No runtime packages or generated bundles are required.
 
 References: [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/), [semantic-release commit analyzer](https://github.com/semantic-release/commit-analyzer), [GitHub reusable workflows](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows).

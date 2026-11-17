@@ -2,12 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { runAction } from '../actions/pr-title/src/index.mjs';
+import { fileURLToPath } from 'node:url';
+import { runAction } from '../src/index.mjs';
 
 const apiUrl = 'https://api.example.test';
 const prUrl = `${apiUrl}/repos/octo/project/pulls/7`;
+const actionEntry = fileURLToPath(new URL('../src/index.mjs', import.meta.url));
 
 function setup(event, eventName = 'pull_request') {
   const dir = mkdtempSync(join(tmpdir(), 'pr-title-runner-'));
@@ -116,7 +118,7 @@ test('escapes workflow error annotations and never prints the token', () => {
     writeFileSync(preloadPath,
       "globalThis.fetch = async () => { throw new Error(process.env.TEST_FETCH_ERROR); };\n");
     const token = 'runner-secret-must-not-leak';
-    const result = spawnSync(process.execPath, ['--import', preloadPath, resolve('actions/pr-title/src/index.mjs')], {
+    const result = spawnSync(process.execPath, ['--import', preloadPath, actionEntry], {
       encoding: 'utf8',
       env: {
         ...process.env,

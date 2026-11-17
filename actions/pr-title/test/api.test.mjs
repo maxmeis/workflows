@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchPullRequestSnapshot } from '../actions/pr-title/src/index.mjs';
+import { fetchPullRequestSnapshot } from '../src/index.mjs';
 
 const apiUrl = 'https://api.example.test';
 const owner = 'octo';
