@@ -7,7 +7,7 @@ const RELEASE_RANK = { none: 0, patch: 1, minor: 2, major: 3 };
 const HEADER = /^([a-z]+)(?:\(([^()\r\n]+)\))?(!)?: ([^\r\n]+)$/;
 const FOOTER = /^(?:BREAKING CHANGE|BREAKING-CHANGE): (\S.*)$/;
 const BREAKING_HEADER = /^(?:BREAKING CHANGE|BREAKING-CHANGE):/;
-const ANY_FOOTER = /^(?:[A-Za-z][A-Za-z-]*|BREAKING CHANGE): \S/;
+const ANY_FOOTER = /^(?:[A-Za-z][A-Za-z0-9-]*(?:: | #)|BREAKING CHANGE: )\S/;
 
 function parseHeader(header) {
   const match = HEADER.exec(header);
