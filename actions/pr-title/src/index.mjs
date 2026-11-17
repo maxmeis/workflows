@@ -96,12 +96,6 @@ function escapeCommand(value) {
   return String(value).replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
 }
 
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (char) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  })[char]);
-}
-
 export async function runAction({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
   if (!env.GITHUB_EVENT_PATH || !env.INPUT_TOKEN || !env.GITHUB_REPOSITORY) {
     throw new Error('Missing GitHub Actions event, repository, or token');
@@ -136,7 +130,7 @@ export async function runAction({ env = process.env, fetchImpl = globalThis.fetc
   if (env.GITHUB_STEP_SUMMARY) {
     appendFileSync(env.GITHUB_STEP_SUMMARY,
       `### PR title matches commit release impact\n\n` +
-      `Release impact: **${escapeHtml(result.release)}**; commits checked: **${count}**.\n`);
+      `Release impact: **${result.release}**; commits checked: **${count}**.\n`);
   }
   console.log(`PR title matches ${count} commits (${result.release} impact)`);
   return result;

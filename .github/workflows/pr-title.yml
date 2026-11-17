@@ -24,4 +24,4 @@ jobs:
     steps:
       - name: Compare PR title with all commits
         id: check
-        uses: maxmeis/workflows/actions/pr-title@6ca3645d6d9b574441e1888f3426807dbb809c8a # v1 source
+        uses: maxmeis/workflows/actions/pr-title@22d1d72779b3e011dc845c9ea74f3c6ce94f077f # v1 source

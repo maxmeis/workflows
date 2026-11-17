@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   pr-title:
-    uses: maxmeis/workflows/.github/workflows/pr-title.yml@579dd6399ee80dfbcbfe470a0fc5a9e936cfafe4 # v1 source
+    uses: maxmeis/workflows/.github/workflows/pr-title.yml@2515fc96f5fe1bc0254ee66a2bf4121225b2ed17 # v1 source
     permissions:
       pull-requests: read
 ```
@@ -40,7 +40,7 @@ jobs:
   pr-title:
     runs-on: ubuntu-latest
     steps:
-      - uses: maxmeis/workflows/actions/pr-title@6ca3645d6d9b574441e1888f3426807dbb809c8a # v1 source
+      - uses: maxmeis/workflows/actions/pr-title@22d1d72779b3e011dc845c9ea74f3c6ce94f077f # v1 source
 ```
 
 The action runs on Node 24. It accepts a `token` input defaulting to `github.token`; the token needs `pull-requests: read`. It emits `release` (`none`, `patch`, `minor`, or `major`) and `commit-count`. The reusable workflow exposes the same outputs.
@@ -99,6 +99,13 @@ There is no path or draft filter. A failing check explains which message or impa
 
 Tests live in [test/](test/) beside this README, the action manifest, and [src/](src/). From the repository root, run `pnpm test` or `pnpm test:coverage` for all actions, or `node --test actions/pr-title/test/*.test.mjs` for this action. You can also run `node --test` from this action's directory.
 
-Tests use `node:test` and mock the GitHub API; CI runs the suite on Node 24 and 26. No runtime packages or generated bundles are required.
+Tests use `node:test`; no runtime packages or generated bundles are required.
+
+- [E2E tests](test/e2e.test.mjs) spawn the shipped executable with event JSON, environment variables, and output/summary files. Native `fetch` makes real TLS-verified HTTPS requests to a loopback GitHub API fixture; these tests do not replace `fetch` or call the action's exported functions. They check all four release levels, both supported events, failures, pagination, snapshot changes, output files, exit codes, and safe error annotations.
+- [Policy](test/policy.test.mjs), [API](test/api.test.mjs), and [runner](test/runner.test.mjs) tests cover detailed input validation and error paths.
+- `pnpm test:e2e` runs process-level E2E tests. `pnpm test:coverage` runs the full suite and requires **100% lines, branches, and functions** for every shipped `actions/*/src/**/*.mjs` file, including a check for files omitted from the report. LCOV is written to `coverage/lcov.info`. Tests and fixtures are outside the shipped-source coverage scope; there are no source coverage exclusions or ignore directives.
+- CI runs the full coverage gate on Node 24 and 26. On PRs it also runs `uses: ./actions/pr-title` with the real GitHub token and API, verifies its outputs, checks that rejected credentials fail, calls the candidate reusable workflow, and verifies its forwarded outputs. These live jobs exercise the manifest and workflow wiring that local process tests cannot execute.
+
+The local E2E suite needs permission to bind a loopback HTTPS port. Its [public test-only certificate and key](test/fixtures/README.md) keep TLS verification enabled; it does not call GitHub or require credentials.
 
 References: [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/), [semantic-release commit analyzer](https://github.com/semantic-release/commit-analyzer), [GitHub reusable workflows](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows).

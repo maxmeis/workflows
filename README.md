@@ -28,10 +28,13 @@ Requires Node 24+; no dependencies or build step.
 
 ```sh
 pnpm test
+pnpm test:e2e
 pnpm check
 pnpm test:coverage
 ```
 
-Tests use Node's built-in `node:test` framework, including mocked GitHub API requests. The root commands discover tests across all action directories. See [CI documentation](docs/ci/README.md) for required checks and contribution instructions.
+Tests use Node's built-in `node:test` framework. Each action includes process-level E2E tests that run its executable against a local HTTPS API fixture, plus focused policy and API tests. `pnpm test:coverage` requires 100% line, branch, and function coverage across every action source file and writes `coverage/lcov.info`.
+
+GitHub CI also executes the action manifest and reusable workflow against a real PR. The root commands discover tests across all action directories. See [CI documentation](docs/ci/README.md) for required checks and contribution instructions.
 
 MIT licensed.

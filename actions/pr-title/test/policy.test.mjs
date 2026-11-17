@@ -54,11 +54,19 @@ test('does not mistake inline prose or a quoted body mention for a breaking foot
 test('rejects malformed headers, unsupported types, and empty footer descriptions', () => {
   for (const message of [
     'Feat: uppercase type', 'feature: unknown type', 'docs:missing space',
-    'docs: ', 'docs(): empty scope',
+    'docs: ', 'docs: trailing description ', 'docs(): empty scope',
+    'docs( scope): bad scope', 'docs(scope ): bad scope',
     'docs!:\n\nBREAKING CHANGE: missing description',
   ]) {
     assert.throws(() => parseCommit(message), undefined, message);
   }
+});
+
+test('rejects invalid commit value and a body that skips its blank separator', () => {
+  for (const value of [null, undefined, '', 1]) {
+    assert.throws(() => parseCommit(value), /commit message/i);
+  }
+  assert.throws(() => parseCommit('docs: valid header\nbody without blank separator'), /blank line/i);
 });
 
 test('rejects an empty breaking footer marker', () => {
@@ -111,6 +119,12 @@ test('rejects release overclaims, false breaking claims, and missing commits', (
     assert.throws(() => validatePullRequest({ title, commits: messages.map(commit) }));
   }
   assert.throws(() => validatePullRequest({ title: 'docs: update docs', commits: [] }), /commit/i);
+});
+
+test('rejects malformed commit records and wraps malformed commit messages', () => {
+  assert.throws(() => validatePullRequest({ title: 'docs: update guide', commits: [null] }), /missing SHA or message/i);
+  assert.throws(() => validatePullRequest({ title: 'docs: update guide', commits: [{ sha: '', message: 'docs: update guide' }] }), /missing SHA or message/i);
+  assert.throws(() => validatePullRequest({ title: 'docs: update guide', commits: [{ sha: 'abc123', message: 'not conventional' }] }), /abc123.*Invalid Conventional Commit header/i);
 });
 
 test('uses the highest impact in a mixed commit set', () => {

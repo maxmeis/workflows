@@ -96,6 +96,47 @@ test('rejects non-PR event names and malformed event payloads before API access'
       rmSync(files.dir, { recursive: true, force: true });
     }
   });
+  const malformedEvents = [
+    ['missing PR object', { number: 7 }],
+    ['invalid PR number', { ...prEvent(), number: 0 }],
+    ['missing PR head', { number: 7, pull_request: {} }],
+    ['non-string head SHA', { number: 7, pull_request: { head: { sha: 42 } } }],
+  ];
+  for (const [name, event] of malformedEvents) {
+    await t.test(name, async () => {
+      const files = setup(event);
+      try {
+        let fetchCalled = false;
+        await assert.rejects(runAction({ env: files.env, fetchImpl: async () => { fetchCalled = true; } }), /invalid pull request event|GitHub API context/i);
+        assert.equal(fetchCalled, false);
+      } finally {
+        rmSync(files.dir, { recursive: true, force: true });
+      }
+    });
+  }
+  await t.test('extra repository segments', async () => {
+    const files = setup(prEvent());
+    try {
+      files.env.GITHUB_REPOSITORY = 'octo/project/extra';
+      await assert.rejects(runAction({ env: files.env }), /invalid pull request event/i);
+    } finally {
+      rmSync(files.dir, { recursive: true, force: true });
+    }
+  });
+});
+
+test('requires an event path, token, and repository context', async (t) => {
+  for (const key of ['GITHUB_EVENT_PATH', 'INPUT_TOKEN', 'GITHUB_REPOSITORY']) {
+    await t.test(key, async () => {
+      const files = setup(prEvent());
+      try {
+        delete files.env[key];
+        await assert.rejects(runAction({ env: files.env }), /missing GitHub Actions event/i);
+      } finally {
+        rmSync(files.dir, { recursive: true, force: true });
+      }
+    });
+  }
 });
 
 test('does not write outputs when the title release impact mismatches commits', async () => {
@@ -104,6 +145,24 @@ test('does not write outputs when the title release impact mismatches commits', 
     const mock = fetchMock({ title: 'docs: update guide', message: 'feat: add feature' });
     await assert.rejects(runAction({ env: files.env, fetchImpl: mock.fetchImpl }), /release|minor/i);
     assert.equal(mock.calls.length, 3);
+    assert.throws(() => readFileSync(files.outputPath), /ENOENT/);
+    assert.throws(() => readFileSync(files.summaryPath), /ENOENT/);
+  } finally {
+    rmSync(files.dir, { recursive: true, force: true });
+  }
+});
+
+test('supports omitted output and summary paths and the default GitHub API URL', async (t) => {
+  const files = setup(prEvent());
+  try {
+    delete files.env.GITHUB_OUTPUT;
+    delete files.env.GITHUB_STEP_SUMMARY;
+    delete files.env.GITHUB_API_URL;
+    const mock = fetchMock();
+    t.mock.method(globalThis, 'fetch', mock.fetchImpl);
+    const result = await runAction({ env: files.env });
+    assert.equal(result.release, 'minor');
+    assert.ok(mock.calls.every(({ url }) => url.startsWith('https://api.github.com/')));
     assert.throws(() => readFileSync(files.outputPath), /ENOENT/);
     assert.throws(() => readFileSync(files.summaryPath), /ENOENT/);
   } finally {

@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, edited, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 permissions:
@@ -35,7 +35,78 @@ jobs:
           node --check actions/pr-title/src/policy.mjs
           node --check actions/pr-title/src/index.mjs
       - name: Run tests with coverage
-        run: node --test --experimental-test-coverage
+        run: node scripts/coverage.mjs
+
+  action-e2e:
+    name: Action E2E
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Run the candidate action against the real PR
+        id: valid
+        uses: ./actions/pr-title
+      - name: Assert action outputs
+        env:
+          RELEASE: ${{ steps.valid.outputs.release }}
+          COMMIT_COUNT: ${{ steps.valid.outputs.commit-count }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          assert.ok(['none', 'patch', 'minor', 'major'].includes(process.env.RELEASE));
+          assert.match(process.env.COMMIT_COUNT, /^[1-9][0-9]*$/);
+          NODE
+      - name: Verify the action fails on rejected credentials
+        id: invalid
+        continue-on-error: true
+        uses: ./actions/pr-title
+        with:
+          token: invalid-e2e-test-token
+      - name: Assert credential failure and no release output
+        if: always()
+        env:
+          OUTCOME: ${{ steps.invalid.outcome }}
+          RELEASE: ${{ steps.invalid.outputs.release }}
+          COMMIT_COUNT: ${{ steps.invalid.outputs.commit-count }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          assert.equal(process.env.OUTCOME, 'failure');
+          assert.equal(process.env.RELEASE, '');
+          assert.equal(process.env.COMMIT_COUNT, '');
+          NODE
+
+  reusable-e2e:
+    name: Reusable workflow E2E
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: read
+    uses: ./.github/workflows/pr-title.yml
+
+  reusable-outputs:
+    name: Reusable workflow outputs
+    needs: reusable-e2e
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Assert reusable workflow outputs
+        env:
+          RELEASE: ${{ needs.reusable-e2e.outputs.release }}
+          COMMIT_COUNT: ${{ needs.reusable-e2e.outputs.commit-count }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          assert.ok(['none', 'patch', 'minor', 'major'].includes(process.env.RELEASE));
+          assert.match(process.env.COMMIT_COUNT, /^[1-9][0-9]*$/);
+          NODE
 
   lint:
     name: Workflow lint

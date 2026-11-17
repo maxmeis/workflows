@@ -11,7 +11,8 @@
   },
   "scripts": {
     "test": "node --test",
-    "test:coverage": "node --test --experimental-test-coverage",
+    "test:e2e": "node --test 'actions/*/test/e2e.test.mjs'",
+    "test:coverage": "node scripts/coverage.mjs",
     "check": "node --check actions/pr-title/src/policy.mjs && node --check actions/pr-title/src/index.mjs"
   }
 }
