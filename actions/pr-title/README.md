@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   pr-title:
-    uses: maxmeis/workflows/.github/workflows/pr-title.yml@579dd6399ee80dfbcbfe470a0fc5a9e936cfafe4 # v1 source
+    uses: maxmeis/workflows/.github/workflows/pr-title.yml@2515fc96f5fe1bc0254ee66a2bf4121225b2ed17 # v1 source
     permissions:
       pull-requests: read
 ```
