@@ -1,0 +1,15 @@
+name: Validate PR title against commits
+description: Ensure a Conventional Commit PR title matches the strongest release impact in its commits
+inputs:
+  token:
+    description: Token with pull-requests read access to the caller repository
+    required: false
+    default: ${{ github.token }}
+outputs:
+  release:
+    description: Release impact (none, patch, minor, or major)
+  commit-count:
+    description: Number of PR commits checked
+runs:
+  using: node24
+  main: src/index.mjs
