@@ -53,6 +53,34 @@ test('fetches a PR and its commits, returning normalized metadata', async () => 
   assert.ok(mock.calls.every(({ options: request }) => request.headers?.Authorization === 'Bearer test-token'));
 });
 
+test('supports default global fetch and normalizes an API URL with a trailing slash', async (t) => {
+  const mock = apiMock();
+  t.mock.method(globalThis, 'fetch', mock.fetch);
+  const result = await fetchPullRequestSnapshot({
+    apiUrl: `${apiUrl}/`, token: 'test-token', owner, repo, number, expectedHead: 'head-sha',
+  });
+  assert.equal(result.head, 'head-sha');
+  assert.ok(mock.calls.every(({ url }) => url.origin === apiUrl));
+});
+
+test('rejects each invalid GitHub API context field', async (t) => {
+  const valid = options(async () => response({}));
+  const cases = [
+    ['fetch function', { fetchImpl: null }],
+    ['token', { token: '' }],
+    ['API URL protocol', { apiUrl: 'http://api.example.test' }],
+    ['owner', { owner: 'bad/owner' }],
+    ['repository name', { repo: 'bad/repo' }],
+    ['pull request number', { number: 0 }],
+    ['expected head SHA', { expectedHead: '' }],
+  ];
+  for (const [name, override] of cases) {
+    await t.test(name, async () => {
+      await assert.rejects(fetchPullRequestSnapshot({ ...valid, ...override }), /GitHub API context/i);
+    });
+  }
+});
+
 test('paginates beyond 100 commits and returns every commit in order', async () => {
   const firstPage = Array.from({ length: 100 }, (_, index) => ({
     sha: `sha-${index}`, commit: { message: `fix: patch ${index}` },
@@ -119,6 +147,26 @@ test('rejects incomplete commit pagination instead of validating a partial histo
   await assert.rejects(fetchPullRequestSnapshot(options(mock.fetch)), /commit|incomplete|count|missing/i);
 });
 
+test('rejects non-array and oversized commit pages', async (t) => {
+  await t.test('non-array response', async () => {
+    const declared = pr();
+    const mock = apiMock({ initial: declared, pages: [{ sha: 'c1' }], final: declared });
+    await assert.rejects(fetchPullRequestSnapshot(options(mock.fetch)), /commit page/i);
+  });
+  await t.test('too many commits on one page', async () => {
+    const declared = pr({ commits: 1 });
+    const mock = apiMock({
+      initial: declared,
+      pages: [[
+        { sha: 'c1', commit: { message: 'feat: one' } },
+        { sha: 'c2', commit: { message: 'feat: two' } },
+      ]],
+      final: declared,
+    });
+    await assert.rejects(fetchPullRequestSnapshot(options(mock.fetch)), /commit page/i);
+  });
+});
+
 test('rejects duplicate SHAs and malformed commit records', async (t) => {
   await t.test('duplicate SHA', async () => {
     const declared = pr({ commits: 2 });
@@ -131,6 +179,21 @@ test('rejects duplicate SHAs and malformed commit records', async (t) => {
     const mock = apiMock({ initial: declared, pages: [[{ sha: 'c1', commit: {} }]], final: declared });
     await assert.rejects(fetchPullRequestSnapshot(options(mock.fetch)), /invalid|commit/i);
   });
+  const malformedRecords = [
+    ['null record', null],
+    ['missing SHA', { commit: { message: 'feat: add feature' } }],
+    ['non-string SHA', { sha: 42, commit: { message: 'feat: add feature' } }],
+    ['empty SHA', { sha: '', commit: { message: 'feat: add feature' } }],
+    ['missing commit object', { sha: 'c1' }],
+    ['non-string message', { sha: 'c1', commit: { message: 42 } }],
+  ];
+  for (const [name, record] of malformedRecords) {
+    await t.test(name, async () => {
+      const declared = pr();
+      const mock = apiMock({ initial: declared, pages: [[record]], final: declared });
+      await assert.rejects(fetchPullRequestSnapshot(options(mock.fetch)), /commit/i);
+    });
+  }
 });
 
 test('fails closed on authentication errors, malformed API data, and network failures', async (t) => {
@@ -141,6 +204,33 @@ test('fails closed on authentication errors, malformed API data, and network fai
   await t.test('malformed pull request response', async () => {
     const mock = apiMock({ initial: { title: 'feat: missing metadata' } });
     await assert.rejects(fetchPullRequestSnapshot(options(mock.fetch)), /incomplete|invalid|head|base|commit|API/i);
+  });
+  const malformedPullRequests = [
+    ['null payload', null],
+    ['non-string title', { ...pr(), title: 42 }],
+    ['missing head', { title: 'feat: title', base: { sha: 'b' }, commits: 1 }],
+    ['non-string head SHA', { ...pr(), head: { sha: 42 } }],
+    ['empty head SHA', { ...pr(), head: { sha: '' } }],
+    ['missing base', { title: 'feat: title', head: { sha: 'head-sha' }, commits: 1 }],
+    ['non-string base SHA', { ...pr(), base: { sha: 42 } }],
+    ['empty base SHA', { ...pr(), base: { sha: '' } }],
+    ['non-integer commit count', { ...pr(), commits: 1.2 }],
+    ['zero commits', { ...pr(), commits: 0 }],
+  ];
+  for (const [name, payload] of malformedPullRequests) {
+    await t.test(name, async () => {
+      const mock = apiMock({ initial: payload });
+      await assert.rejects(fetchPullRequestSnapshot(options(mock.fetch)), /pull request data/i);
+    });
+  }
+  await t.test('invalid JSON', async () => {
+    const mock = apiMock();
+    mock.fetch = async (input, options) => {
+      const url = new URL(typeof input === 'string' ? input : input.url);
+      if (url.pathname.endsWith('/pulls/17')) return new Response('not json');
+      return response([]);
+    };
+    await assert.rejects(fetchPullRequestSnapshot(options(mock.fetch)), SyntaxError);
   });
   await t.test('network failure', async () => {
     const fetch = async () => { throw new Error('socket closed'); };
