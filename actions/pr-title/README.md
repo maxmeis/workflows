@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   pr-title:
-    uses: maxmeis/workflows/.github/workflows/pr-title.yml@v1
+    uses: maxmeis/workflows/.github/workflows/pr-title.yml@579dd6399ee80dfbcbfe470a0fc5a9e936cfafe4 # v1 source
     permissions:
       pull-requests: read
 ```
@@ -40,7 +40,7 @@ jobs:
   pr-title:
     runs-on: ubuntu-latest
     steps:
-      - uses: maxmeis/workflows/actions/pr-title@v1
+      - uses: maxmeis/workflows/actions/pr-title@6ca3645d6d9b574441e1888f3426807dbb809c8a # v1 source
 ```
 
 The action runs on Node 24. It accepts a `token` input defaulting to `github.token`; the token needs `pull-requests: read`. It emits `release` (`none`, `patch`, `minor`, or `major`) and `commit-count`. The reusable workflow exposes the same outputs.
