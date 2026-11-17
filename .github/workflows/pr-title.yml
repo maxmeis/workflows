@@ -1,0 +1,27 @@
+name: PR title release check
+
+on:
+  workflow_call:
+    outputs:
+      release:
+        description: Release impact declared by the PR title and its commits
+        value: ${{ jobs.validate.outputs.release }}
+      commit-count:
+        description: Number of PR commits checked
+        value: ${{ jobs.validate.outputs.commit-count }}
+
+permissions:
+  pull-requests: read
+
+jobs:
+  validate:
+    name: Validate PR title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+      commit-count: ${{ steps.check.outputs.commit-count }}
+    steps:
+      - name: Compare PR title with all commits
+        id: check
+        uses: maxmeis/workflows/actions/pr-title@6ca3645d6d9b574441e1888f3426807dbb809c8a # v1 source

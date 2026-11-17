@@ -1,0 +1,17 @@
+{
+  "name": "@maxmeis/workflows",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared GitHub workflows and actions",
+  "license": "MIT",
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage",
+    "check": "node --check actions/pr-title/src/policy.mjs && node --check actions/pr-title/src/index.mjs"
+  }
+}
