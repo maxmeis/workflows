@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCommit, validatePullRequest } from '../actions/pr-title/src/policy.mjs';
+import { parseCommit, validatePullRequest } from '../src/policy.mjs';
 
 const commit = (message, sha = 'abc123') => ({ sha, message });
 

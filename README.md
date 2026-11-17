@@ -14,6 +14,16 @@ Use `v1` for compatible updates, or pin a full commit SHA for immutable executio
 
 ## Development
 
+Keep each action's implementation, tests, and README together:
+
+```text
+actions/<name>/
+  action.yml
+  README.md
+  src/
+  test/
+```
+
 Requires Node 24+; no dependencies or build step.
 
 ```sh
@@ -22,6 +32,6 @@ pnpm check
 pnpm test:coverage
 ```
 
-Tests use Node's built-in `node:test` framework, including mocked GitHub API requests. See [CI documentation](docs/ci/README.md) for required checks and contribution instructions.
+Tests use Node's built-in `node:test` framework, including mocked GitHub API requests. The root commands discover tests across all action directories. See [CI documentation](docs/ci/README.md) for required checks and contribution instructions.
 
 MIT licensed.

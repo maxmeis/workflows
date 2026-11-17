@@ -31,6 +31,6 @@ Only squash merging is enabled. Its default commit title is the PR title and its
 
 ## Contributing
 
-Use conventional commit messages for every commit and a PR title matching the strongest release impact. Rebase to update a branch instead of adding a generated merge commit. Add policy and mocked API regression tests for behavior changes, then run the local checks. Document public rule or input changes in the [action README](../../actions/pr-title/README.md).
+Use conventional commit messages for every commit and a PR title matching the strongest release impact. Rebase to update a branch instead of adding a generated merge commit. Keep each action's README, implementation, and tests together under `actions/<name>/`, with tests in its `test/` directory. Add policy and mocked API regression tests for behavior changes, then run the local checks. Document public rule or input changes in the [action README](../../actions/pr-title/README.md).
 
 The reusable workflow pins the action source. When changing `actions/pr-title/src/` or its manifest, commit that implementation first, then update the action SHA in `.github/workflows/pr-title.yml` to that implementation commit. Test the standalone action and reusable workflow before publishing a version tag. Keep `v1` on the latest compatible release and create a new major for incompatible policy or interface changes.
