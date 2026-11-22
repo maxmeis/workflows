@@ -1,0 +1,16 @@
+when:
+  - event: push
+    branch: main
+  - event: [pull_request, manual]
+
+labels:
+  platform: linux/amd64
+
+steps:
+  - name: workflow-lint
+    image: node:24.19.0-bookworm@sha256:4196d66a565c6f195728d9952f161f4adfe2ad753052a08b7ec7f1c5a6bda42b
+    commands:
+      - curl --fail --silent --show-error --location https://github.com/woodpecker-ci/woodpecker/releases/download/v3.20.1/woodpecker-cli_linux_amd64.tar.gz --output /tmp/woodpecker-cli.tar.gz
+      - echo '5b74ff1808af35b57bd5c2b528b7fdff24f5f69ad327715c1797f764da79dc13  /tmp/woodpecker-cli.tar.gz' | sha256sum --check
+      - tar -xzf /tmp/woodpecker-cli.tar.gz -C /tmp woodpecker-cli
+      - /tmp/woodpecker-cli --disable-update-check lint --strict .woodpecker/

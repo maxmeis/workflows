@@ -1,0 +1,16 @@
+when:
+  - event: push
+    branch: main
+  - event: [pull_request, manual]
+
+labels:
+  platform: linux/amd64
+
+steps:
+  - name: tests-and-coverage
+    image: node:26.12.1-bookworm@sha256:3b764117159bda01d2396391e7789b6a9106af9729cfd001ef55e98557868310
+    commands:
+      - node --check actions/pr-title/src/policy.mjs
+      - node --check actions/pr-title/src/index.mjs
+      - node --check scripts/pr-title.mjs
+      - node scripts/coverage.mjs

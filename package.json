@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Shared GitHub workflows and actions",
+  "description": "Shared Woodpecker CI workflows and PR-title checker",
   "license": "MIT",
   "packageManager": "pnpm@12.4.2",
   "engines": {
@@ -11,8 +11,9 @@
   },
   "scripts": {
     "test": "node --test",
-    "test:e2e": "node --test 'actions/*/test/e2e.test.mjs'",
+    "test:e2e": "node --test 'actions/*/test/e2e.test.mjs' 'actions/*/test/woodpecker.test.mjs'",
     "test:coverage": "node scripts/coverage.mjs",
-    "check": "node --check actions/pr-title/src/policy.mjs && node --check actions/pr-title/src/index.mjs"
+    "check": "node --check actions/pr-title/src/policy.mjs && node --check actions/pr-title/src/index.mjs && node --check scripts/pr-title.mjs",
+    "check:pr-title": "node scripts/pr-title.mjs"
   }
 }

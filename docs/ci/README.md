@@ -1,44 +1,56 @@
 # CI and branch protection
 
-[CI workflow](../../.github/workflows/ci.yml) runs on pull requests (including title edits), pushes to `main`, and manual dispatch. The live GitHub API jobs run on PR events; the local E2E suite and coverage gate run on all CI events.
+Repository automation runs on Woodpecker at `ci.nest42.de`. There are no GitHub Actions workflows. The Linux Docker agent runs all four workflows using `labels: { platform: linux/amd64 }`.
 
-| Check | Validation |
-| --- | --- |
-| `Tests (Node 24)` | JavaScript syntax, process E2E tests, and 100% line, branch, and function coverage on the action's runtime. |
-| `Tests (Node 26)` | The same suite on Node 26. |
-| `Workflow lint` | GitHub Actions syntax and expression checks using checksum-pinned actionlint. |
-| `PR title / Validate PR title` | The [shared PR-title check](../../actions/pr-title/README.md), on PR metadata events. |
-| `Action E2E` | Execute the candidate action manifest against the real PR; verify outputs and rejected-credential failure. |
-| `Reusable workflow E2E / Validate PR title` | Execute the candidate reusable workflow against the real PR. |
-| `Reusable workflow outputs` | Verify the reusable workflow forwards valid release and commit-count outputs. |
+| Workflow | Events | Validation |
+| --- | --- | --- |
+| [`test-node-24`](../../.woodpecker/test-node-24.yaml) | PRs, pushes to `main`, manual | Syntax checks, process E2E tests, and 100% line, branch, and function coverage. |
+| [`test-node-26`](../../.woodpecker/test-node-26.yaml) | PRs, pushes to `main`, manual | The same suite on Node 26. |
+| [`lint`](../../.woodpecker/lint.yaml) | PRs, pushes to `main`, manual | Native Woodpecker workflow lint, with warnings treated as errors. |
+| [`pr-title`](../../.woodpecker/pr-title.yaml) | PRs and PR metadata changes | Current PR title and all commit messages declare matching release impact. |
 
-Node's built-in test framework needs no installation step. There are no runtime or development dependencies. CI uses read-only permissions, pinned action SHAs, and checkout without persisted credentials. Dependabot checks action updates weekly.
+Node container images are pinned to digests. Lint downloads Woodpecker CLI v3.20.1 and verifies its SHA-256 before execution. Node's built-in test framework needs no package installation. PR jobs have no repository secrets; the live checker uses GitHub's public API without authentication. API errors, including rate limiting, fail the check.
 
 ## Local checks
 
 Requires Node 24+ and pnpm:
 
 ```sh
-pnpm test
-pnpm test:e2e
 pnpm check
 pnpm test:coverage
+woodpecker-cli --disable-update-check lint --strict .woodpecker/
 ```
 
-To lint workflows locally, install [actionlint](https://github.com/rhysd/actionlint) and run `actionlint` from the repository root. CI verifies the download checksum before running its pinned version.
+`pnpm test` runs all tests, and `pnpm test:e2e` runs the process E2E tests. `pnpm check:pr-title` runs the shared checker when Woodpecker PR environment variables are available. See the [checker documentation](../../actions/pr-title/README.md) for the shared consumer interface and optional private-repository credentials.
 
-`pnpm test:coverage` runs the entire test suite through [the coverage gate](../../scripts/coverage.mjs), enforces 100% lines, branches, and functions for action source, and produces `coverage/lcov.info`. It enumerates every `actions/*/src/**/*.mjs` file and rejects files missing from the report. Coverage excludes test code and fixtures through a source-only include pattern; no shipped source is ignored.
+The [coverage gate](../../scripts/coverage.mjs) enforces 100% lines, branches, and functions for every `actions/*/src/**/*.mjs` file and `scripts/pr-title.mjs`. It writes `coverage/lcov.info` and rejects source files missing from the report. Test code and fixtures are excluded; shipped checker source has no coverage exclusions or ignore directives.
 
-The process E2E tests launch the actual Node entry point and talk to a loopback HTTPS fixture with TLS verification enabled. They check event/input handling, API calls, policy decisions, outputs, summaries, exit status, and diagnostics together. Live PR jobs separately test the real action manifest, GitHub API access, and reusable workflow wiring. All live candidate execution happens on unprivileged `pull_request` with read-only permissions and no inherited secrets; the `pull_request_target` title check continues to execute only pinned trusted code.
+Process E2E tests run the actual executable against a loopback HTTPS fixture with TLS verification enabled. They cover event/input handling, API calls, validation policy, outputs, exit status, and diagnostics. Woodpecker CLI tests also cover public API requests without Authorization, authenticated requests, metadata events, invalid context, stale heads, and failures. The local suite needs permission to bind a loopback HTTPS port.
 
-## Main protection
+The live PR-title workflow runs the same Woodpecker command against GitHub. GitHub action-manifest execution, reusable-workflow forwarding, and GitHub-specific integration jobs have been retired. The legacy action entry point and its regression tests remain for compatibility with historical consumers.
 
-The repository requires pull requests and all seven checks above, with an up-to-date branch before merging. Protection applies to administrators. Force pushes and branch deletion are blocked, conversations must be resolved, and history must be linear. No reviewer approval is required so a sole maintainer can merge their own PR after checks pass.
+## Activate Woodpecker and migrate required checks
 
-Only squash merging is enabled. Its default commit title is the PR title and its default body is empty, so release tools see the same impact the checker validated. Keep the final merge title consistent with the checked title.
+Enable `maxmeis/workflows` in Woodpecker, keep its pipeline path at the default `.woodpecker/` discovery, and allow `push`, `pull_request`, `pull_request_metadata`, and `manual` events. The GitHub webhook must deliver PR metadata edits so title changes rerun validation. Keep repository secrets out of PR workflows: Woodpecker reads workflow configuration from the PR commit.
 
-## Contributing
+Before requiring the title check, configure Woodpecker's server-side `WOODPECKER_STATUS_CONTEXT_FORMAT` so the `pr-title` workflow reports the same context for PR and metadata events. The default includes the event, which would leave title edits outside a required PR check; requiring both default contexts would block a new PR until its first metadata event. The live server uses this repository-scoped conditional template, preserving the default format for other repositories and workflows:
 
-Use conventional commit messages for every commit and a PR title matching the strongest release impact. Rebase to update a branch instead of adding a generated merge commit. Keep each action's README, implementation, and tests together under `actions/<name>/`, with tests in its `test/` directory. Add policy and mocked API regression tests for behavior changes, then run the local checks. Document public rule or input changes in the [action README](../../actions/pr-title/README.md).
+```text
+{{ .context }}/{{if and (eq .owner "maxmeis") (eq .repo "workflows") (eq .workflow "pr-title")}}pr{{else}}{{ .event }}{{end}}/{{ .workflow }}{{if not (eq .axis_id 0)}}/{{.axis_id}}{{end}}
+```
 
-The reusable workflow pins the action source. When changing `actions/pr-title/src/` or its manifest, commit that implementation first, then update the action SHA in `.github/workflows/pr-title.yml` to that implementation commit. Test the standalone action and reusable workflow before publishing a version tag. Keep `v1` on the latest compatible release and create a new major for incompatible policy or interface changes.
+The `pr-title` workflow name comes from `.woodpecker/pr-title.yaml`; keep that filename in consumers. With the default prefix, its shared status is `ci/woodpecker/pr/pr-title`. Enable **Cancel previous pipelines** for both `pull_request` and `pull_request_metadata` in project settings. The workflow also uses a per-PR concurrency group with limit one to serialize checks across those events. Set a five-minute project timeout to retain the previous workflows' execution bound.
+
+The live project requires owner approval for **all events** (`require_approval: all_events`). Before approving a pipeline, review the exact commit, workflow configuration, and checker changes; an untrusted PR can edit YAML or candidate source to bypass validation. Keep this approval policy unless an exclusive server-controlled configuration extension instead supplies a protected workflow and immutable checker. The inline consumer example needs the same trust control. A pinned checker fetch alone does not protect editable caller YAML.
+
+After successful PR and metadata pipelines, verify both update the same title status. Require that status and the three other workflow contexts actually reported on a PR, then remove the obsolete GitHub requirements: `Tests (Node 24)`, `Tests (Node 26)`, `Workflow lint`, `PR title / Validate PR title`, `Action E2E`, `Reusable workflow E2E / Validate PR title`, and `Reusable workflow outputs`. Until protection is migrated, those retired required checks will block merging. Repository `maxmeis/workflows` is activated as Woodpecker project 4. The status template is persisted in the server's existing root-only environment file, and the empty scheduler was resumed for activation. Project visibility is private, privileged/network/volume trust is off, and every event requires owner approval.
+
+Retain pull requests, up-to-date branches, resolved conversations, linear history, and force-push/deletion protection. Apply protection to administrators. Only squash merging should be enabled, with the PR title as its default commit title and an empty default body. Keep the final merge title consistent with the validated PR title.
+
+## Contributing and shared checker releases
+
+Use conventional commit messages and a PR title matching the strongest release impact. Rebase to update a branch. Keep policy, API, and adapter tests with the checker under `actions/pr-title/test/`; its Woodpecker executable lives in `scripts/pr-title.mjs`. Add regression tests for behavior changes, run the local checks, and update the checker README for public interface or rule changes.
+
+Consumers fetch this public repository at a reviewed full commit SHA and run the Woodpecker command. Publish the chosen SHA only after testing the command and pipelines. Existing GitHub consumers pinned to historical commits keep their original implementation; no GitHub workflow files are published from this revision. Keep the old `v1` tag on the GitHub-compatible release line rather than moving it to the migrated source. Adopt a new major release for the Woodpecker interface.
+
+References: [Woodpecker events and workflow syntax](https://woodpecker-ci.org/docs/usage/workflow-syntax), [environment variables](https://woodpecker-ci.org/docs/usage/environment), [server status configuration](https://woodpecker-ci.org/docs/administration/configuration/server), [security boundaries](https://woodpecker-ci.org/docs/usage/security-boundaries).

@@ -1,20 +1,18 @@
 # Workflows
 
-Shared GitHub Actions and reusable workflows for my repositories.
+Shared Woodpecker CI workflows and checks for my repositories.
 
 | Workflow | Purpose | Documentation |
 | --- | --- | --- |
-| [PR title](.github/workflows/pr-title.yml) | Match the conventional PR title to the strongest release impact in its commits. | [Usage and rules](actions/pr-title/README.md) |
-| [Repository PR title](.github/workflows/check-pr-title.yml) | Apply the shared checker to this repository's PRs. | [Usage and rules](actions/pr-title/README.md) |
-| [CI](.github/workflows/ci.yml) | Test the checker on Node 24 and 26, and lint workflows. | [Development and protection](docs/ci/README.md) |
+| [PR title](.woodpecker/pr-title.yaml) | Match the conventional PR title to the strongest release impact in its commits, including after title edits. | [Usage and rules](actions/pr-title/README.md) |
+| [Node 24](.woodpecker/test-node-24.yaml) / [Node 26](.woodpecker/test-node-26.yaml) | Syntax checks, process E2E tests, and coverage. | [Development and protection](docs/ci/README.md) |
+| [Workflow lint](.woodpecker/lint.yaml) | Validate Woodpecker configurations with the checksum-pinned CLI. | [Development and protection](docs/ci/README.md) |
 
-The PR-title checker is also available as a [standalone action](actions/pr-title/action.yml).
-
-Use `v1` for compatible updates, or pin a full commit SHA for immutable execution. Releases: [GitHub releases](https://github.com/maxmeis/workflows/releases).
+The shared checker runs with `node scripts/pr-title.mjs` in a Woodpecker PR step. See its [consumer setup](actions/pr-title/README.md#woodpecker-workflow) for using a pinned copy in another repository. Public GitHub repositories need no token. There are no GitHub Actions workflows in this repository.
 
 ## Development
 
-Keep each action's implementation, tests, and README together:
+The validation policy and tests remain together; the Woodpecker command lives in `scripts/pr-title.mjs`:
 
 ```text
 actions/<name>/
@@ -33,8 +31,8 @@ pnpm check
 pnpm test:coverage
 ```
 
-Tests use Node's built-in `node:test` framework. Each action includes process-level E2E tests that run its executable against a local HTTPS API fixture, plus focused policy and API tests. `pnpm test:coverage` requires 100% line, branch, and function coverage across every action source file and writes `coverage/lcov.info`.
+Tests use Node's built-in `node:test` framework. Process E2E tests run the executables against a local HTTPS API fixture, alongside focused policy and API tests. `pnpm test:coverage` requires 100% line, branch, and function coverage across every checker source file, including the Woodpecker command, and writes `coverage/lcov.info`.
 
-GitHub CI also executes the action manifest and reusable workflow against a real PR. The root commands discover tests across all action directories. See [CI documentation](docs/ci/README.md) for required checks and contribution instructions.
+Woodpecker runs the checker against the current PR and repeats it on metadata edits. The root commands discover tests across all action directories, including the Woodpecker command’s tests. See [CI documentation](docs/ci/README.md) for required checks and contribution instructions.
 
 MIT licensed.
