@@ -63,11 +63,20 @@ test('supports default global fetch and normalizes an API URL with a trailing sl
   assert.ok(mock.calls.every(({ url }) => url.origin === apiUrl));
 });
 
+test('fetches a public PR without an Authorization header', async () => {
+  const mock = apiMock();
+  const result = await fetchPullRequestSnapshot(options(mock.fetch, { token: undefined }));
+  assert.equal(result.head, 'head-sha');
+  assert.ok(mock.calls.every(({ options: request }) =>
+    !Object.hasOwn(request.headers, 'Authorization')));
+});
+
 test('rejects each invalid GitHub API context field', async (t) => {
   const valid = options(async () => response({}));
   const cases = [
     ['fetch function', { fetchImpl: null }],
     ['token', { token: '' }],
+    ['invalid token type', { token: null }],
     ['API URL protocol', { apiUrl: 'http://api.example.test' }],
     ['owner', { owner: 'bad/owner' }],
     ['repository name', { repo: 'bad/repo' }],

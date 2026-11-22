@@ -36,7 +36,8 @@ export async function fetchPullRequestSnapshot({
   number,
   expectedHead,
 }) {
-  if (typeof fetchImpl !== 'function' || typeof token !== 'string' || !token ||
+  if (typeof fetchImpl !== 'function' ||
+      (token !== undefined && (typeof token !== 'string' || !token)) ||
       typeof apiUrl !== 'string' || !/^https:\/\//.test(apiUrl) ||
       typeof owner !== 'string' || !/^[\w.-]+$/.test(owner) ||
       typeof repo !== 'string' || !/^[\w.-]+$/.test(repo) ||
@@ -51,7 +52,7 @@ export async function fetchPullRequestSnapshot({
       signal: AbortSignal.timeout(30_000),
       headers: {
         Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${token}`,
+        ...(token === undefined ? {} : { Authorization: `Bearer ${token}` }),
         'X-GitHub-Api-Version': '2022-11-28',
       },
     });
