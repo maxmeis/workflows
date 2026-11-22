@@ -29,9 +29,9 @@ Process E2E tests run the actual executable against a loopback HTTPS fixture wit
 
 The live PR-title workflow runs the same Woodpecker command against GitHub. GitHub action-manifest execution, reusable-workflow forwarding, and GitHub-specific integration jobs have been retired. The legacy action entry point and its regression tests remain for compatibility with historical consumers.
 
-## Activate Woodpecker and migrate required checks
+## Live activation and required checks
 
-Enable `maxmeis/workflows` in Woodpecker, keep its pipeline path at the default `.woodpecker/` discovery, and allow `push`, `pull_request`, `pull_request_metadata`, and `manual` events. The GitHub webhook must deliver PR metadata edits so title changes rerun validation. Keep repository secrets out of PR workflows: Woodpecker reads workflow configuration from the PR commit.
+`maxmeis/workflows` is activated as Woodpecker project 4 at `https://ci.nest42.de/repos/4`. It uses default `.woodpecker/` discovery for push, PR, metadata, and manual pipelines. The installed GitHub webhook delivers `pull_request` events, from which Woodpecker derives PR metadata events. The GitHub webhook must deliver PR metadata edits so title changes rerun validation. Keep repository secrets out of PR workflows: Woodpecker reads workflow configuration from the PR commit.
 
 Before requiring the title check, configure Woodpecker's server-side `WOODPECKER_STATUS_CONTEXT_FORMAT` so the `pr-title` workflow reports the same context for PR and metadata events. The default includes the event, which would leave title edits outside a required PR check; requiring both default contexts would block a new PR until its first metadata event. The live server uses this repository-scoped conditional template, preserving the default format for other repositories and workflows:
 
@@ -41,9 +41,21 @@ Before requiring the title check, configure Woodpecker's server-side `WOODPECKER
 
 The `pr-title` workflow name comes from `.woodpecker/pr-title.yaml`; keep that filename in consumers. With the default prefix, its shared status is `ci/woodpecker/pr/pr-title`. Enable **Cancel previous pipelines** for both `pull_request` and `pull_request_metadata` in project settings. The workflow also uses a per-PR concurrency group with limit one to serialize checks across those events. Set a five-minute project timeout to retain the previous workflows' execution bound.
 
-The live project requires owner approval for **all events** (`require_approval: all_events`). Before approving a pipeline, review the exact commit, workflow configuration, and checker changes; an untrusted PR can edit YAML or candidate source to bypass validation. Keep this approval policy unless an exclusive server-controlled configuration extension instead supplies a protected workflow and immutable checker. The inline consumer example needs the same trust control. A pinned checker fetch alone does not protect editable caller YAML.
+The live project requires owner approval for **all webhook events** (`require_approval: all_events`; Woodpecker-created manual and cron runs are exempt). Before approving a pipeline, review the exact commit, workflow configuration, and checker changes; an untrusted PR can edit YAML or candidate source to bypass validation. Keep this approval policy unless an exclusive server-controlled configuration extension instead supplies a protected workflow and immutable checker. The inline consumer example needs the same trust control. A pinned checker fetch alone does not protect editable caller YAML.
 
-After successful PR and metadata pipelines, verify both update the same title status. Require that status and the three other workflow contexts actually reported on a PR, then remove the obsolete GitHub requirements: `Tests (Node 24)`, `Tests (Node 26)`, `Workflow lint`, `PR title / Validate PR title`, `Action E2E`, `Reusable workflow E2E / Validate PR title`, and `Reusable workflow outputs`. Until protection is migrated, those retired required checks will block merging. Repository `maxmeis/workflows` is activated as Woodpecker project 4. The status template is persisted in the server's existing root-only environment file, and the empty scheduler was resumed for activation. Project visibility is private, privileged/network/volume trust is off, and every event requires owner approval.
+Main requires these exact statuses, with the branch up to date:
+
+| Action/check | Required status |
+| --- | --- |
+| Workflow lint | `ci/woodpecker/pr/lint` |
+| PR-title validation | `ci/woodpecker/pr/pr-title` |
+| Node 24 tests and coverage | `ci/woodpecker/pr/test-node-24` |
+| Node 26 tests and coverage | `ci/woodpecker/pr/test-node-26` |
+
+The seven former GitHub Actions requirements have been removed. All four checks passed the first live PR pipeline. A metadata edit resets the same required PR-title context to pending approval. Live validation also confirmed that changing a `ci:` title to `feat:` fails when all commits have no release impact. The status template is persisted in the server's existing root-only environment file. Project visibility is private, privileged/network/volume trust is off, and every webhook event requires owner approval. Manual runs are restricted to authorized Woodpecker users. GitHub still requires pull requests and preserves the existing review policy; Woodpecker's execution approval is an additional review of the pipeline source.
+
+Keep [CLAUDE.md](../../CLAUDE.md) and [CODEX.md](../../CODEX.md) current whenever adding or changing an action or required check. Each action/check must have its own section in both inventories.
+
 
 Retain pull requests, up-to-date branches, resolved conversations, linear history, and force-push/deletion protection. Apply protection to administrators. Only squash merging should be enabled, with the PR title as its default commit title and an empty default body. Keep the final merge title consistent with the validated PR title.
 
